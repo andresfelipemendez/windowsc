@@ -1,5 +1,7 @@
 #include <windows.h>
 
+static int Running;
+
 LRESULT CALLBACK
 MainWindowCallback(HWND Window,
                    UINT Message,
@@ -15,16 +17,15 @@ MainWindowCallback(HWND Window,
         }
         break;
 
-        case WM_DESTROY:
+        case WM_CLOSE:
         {
-            OutputDebugStringA("WM_DESTROY");
-            PostQuitMessage(0);
+            Running = 0;
         }
         break;
 
-        case WM_CLOSE:
+        case WM_DESTROY:
         {
-            OutputDebugStringA("WM_CLOSE");
+            Running = 0;
         }
         break;
 
@@ -109,8 +110,9 @@ int CALLBACK WinMain(HINSTANCE Instance,
 
     ShowWindow(WindowHandle, ShowCode);
 
+    Running = 1;
     MSG Message;
-    for (;;)
+    while (Running > 0)
     {
         BOOL MessageResult = GetMessage(&Message, 0, 0, 0);
         if (MessageResult > 0)
