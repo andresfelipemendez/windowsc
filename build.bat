@@ -1,1 +1,1 @@
-clang -I"C:\Program Files (x86)\Windows Kits\10\Include" -L"C:\Program Files (x86)\Windows Kits\10\Lib" -lUser32 -lGdi32 -Wno-missing-declarations -Wno-invalid-token-paste -Wno-unused-value -std=c11 -x c test.c 
+clang -I"C:\Program Files (x86)\Windows Kits\10\Include" -L"C:\Program Files (x86)\Windows Kits\10\Lib" -lUser32 -lGdi32 -Wno-missing-declarations -Wno-invalid-token-paste -Wno-unused-value -std=c99 -x c test.c 
