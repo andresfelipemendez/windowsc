@@ -11,6 +11,39 @@ static void *BitmapMemory;
 static int BitMapWidth;
 static int BitMapHeight;
 
+void DrawGradient(int XOffset, int YOffset )
+{
+    int BytesPerPixel = 4;
+    int BitmapMemorySize = (BitMapWidth * BitMapHeight) * BytesPerPixel;
+    BitmapMemory = VirtualAlloc(0, BitmapMemorySize, MEM_COMMIT, PAGE_READWRITE);
+
+    int Pitch = BitMapWidth * BytesPerPixel;
+    uint8 *Row = (uint8 *)BitmapMemory;
+
+    for (int y = 0; y < BitMapHeight; ++y)
+    {
+        uint8 *Pixel = (uint8 *)Row;
+        for (int x = 0; x < BitMapWidth; ++x)
+        {
+            /*
+
+            */
+            *Pixel = (uint8)x + XOffset;
+            ++Pixel;
+
+            *Pixel = (uint8)y + YOffset;
+            ++Pixel;
+
+            *Pixel = 0;
+            ++Pixel;
+
+            *Pixel = 0;
+            ++Pixel;
+        }
+        Row += Pitch;
+    }
+}
+
 void Win32ResizeDIBSection(int Width, int Height)
 {
     if (BitmapMemory)
@@ -28,37 +61,7 @@ void Win32ResizeDIBSection(int Width, int Height)
     BitmapInfo.bmiHeader.biBitCount = 32;
     BitmapInfo.bmiHeader.biCompression = BI_RGB;
 
-    int BytesPerPixel = 4;
-    int BitmapMemorySize = (Width * Height) * BytesPerPixel;
-    BitmapMemory = VirtualAlloc(0, BitmapMemorySize, MEM_COMMIT, PAGE_READWRITE);
-
-    int Pitch = Width * BytesPerPixel;
-    uint8 *Row = (uint8*) BitmapMemory;
-
-    for (int y = 0; y < BitMapHeight; ++y)
-    {
-        uint8 *Pixel = (uint8 *)Row;
-        for (int x = 0; x < BitMapWidth; ++x)
-        {
-            /*
-
-            */
-            *Pixel = (uint8) x;
-            ++Pixel;
-
-            *Pixel = (uint8) y;
-            ++Pixel;
-
-            *Pixel = 0;
-            ++Pixel;
-
-            *Pixel = 0;
-            ++Pixel;
-        }
-        Row += Pitch;
-    }
 }
-
 void
 Win32UpdateWindow(HDC DeviceContext, RECT * WindowRect, int X,int Y,int Width,int Height)
 {
@@ -184,21 +187,35 @@ int CALLBACK WinMain(HINSTANCE Instance,
     }
 
     ShowWindow(WindowHandle, ShowCode);
-
+    int XOffset = 0;
+    int YOffset = 0;
+    
     Running = true;
-    MSG Message;
     while (Running > 0)
     {
-        BOOL MessageResult = GetMessage(&Message, 0, 0, 0);
-        if (MessageResult > 0)
+       
+        MSG Message;
+        while (PeekMessage(&Message, 0, 0, 0, PM_REMOVE) > 0)
         {
+            if(Message.message == WM_QUIT) {
+                Running = false;
+            }
             TranslateMessage(&Message);
             DispatchMessage(&Message);
         }
-        else
-        {
-            break;
-        }
+
+        DrawGradient(XOffset, YOffset);
+
+        HDC DeviceContext = GetDC(WindowHandle);
+        RECT ClientRect;
+        GetClientRect(WindowHandle, &ClientRect);
+        int Height = ClientRect.bottom - ClientRect.top;
+        int Width = ClientRect.right - ClientRect.left;
+        Win32UpdateWindow(DeviceContext, &ClientRect, 0, 0, Width, Height);
+        ReleaseDC(WindowHandle, DeviceContext);
+
+        ++XOffset;
+        ++YOffset;
     }
 
     return 0;
