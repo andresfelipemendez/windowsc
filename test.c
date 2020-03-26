@@ -1,6 +1,22 @@
+//https : //community.khronos.org/t/avoiding-the-default-framebuffer-blit-overhead/68813
+
 #include <windows.h>
+
+#define INITGUID
+#include <d3d11.h>
+
 #include <stdbool.h>
 #include <stdint.h>
+
+        ID3D11Device *d3ddev;
+ID3D11DeviceContext *d3dctx;
+IDXGISwapChain *sc;
+DXGI_SWAP_CHAIN_DESC scd;
+ID3D11Texture2D *d3dbb;
+ID3D11RenderTargetView *view;
+
+void InitD3D(HWND hWnd);
+void CleanD3D(void);
 
 typedef uint8_t uint8;
 typedef uint32_t uint32;
@@ -11,75 +27,6 @@ static void *BitmapMemory;
 static int BitMapWidth;
 static int BitMapHeight;
 
-void DrawGradient(int XOffset, int YOffset )
-{
-    int BytesPerPixel = 4;
-    int BitmapMemorySize = (BitMapWidth * BitMapHeight) * BytesPerPixel;
-    BitmapMemory = VirtualAlloc(0, BitmapMemorySize, MEM_COMMIT, PAGE_READWRITE);
-
-    int Pitch = BitMapWidth * BytesPerPixel;
-    uint8 *Row = (uint8 *)BitmapMemory;
-
-    for (int y = 0; y < BitMapHeight; ++y)
-    {
-        uint8 *Pixel = (uint8 *)Row;
-        for (int x = 0; x < BitMapWidth; ++x)
-        {
-            /*
-
-            */
-            *Pixel = (uint8)x + XOffset;
-            ++Pixel;
-
-            *Pixel = (uint8)y + YOffset;
-            ++Pixel;
-
-            *Pixel = 0;
-            ++Pixel;
-
-            *Pixel = 0;
-            ++Pixel;
-        }
-        Row += Pitch;
-    }
-}
-
-void Win32ResizeDIBSection(int Width, int Height)
-{
-    if (BitmapMemory)
-    {
-        VirtualFree(BitmapMemory, 0, MEM_RELEASE);
-    }
-
-    BitMapWidth = Width;
-    BitMapHeight = Height;
-
-    BitmapInfo.bmiHeader.biSize = sizeof(BitmapInfo.bmiHeader);
-    BitmapInfo.bmiHeader.biWidth = Width; 
-    BitmapInfo.bmiHeader.biHeight = Height;
-    BitmapInfo.bmiHeader.biPlanes = 1;
-    BitmapInfo.bmiHeader.biBitCount = 32;
-    BitmapInfo.bmiHeader.biCompression = BI_RGB;
-
-}
-void
-Win32UpdateWindow(HDC DeviceContext, RECT * WindowRect, int X,int Y,int Width,int Height)
-{
-
-    int WindowHeight = WindowRect->bottom - WindowRect->top;
-    int WindowWidth = WindowRect->right - WindowRect->left;
-
-    StretchDIBits(
-        DeviceContext,
-        // X, Y, Width, Height,
-        // X, Y, Width, Height,
-        0, 0, BitMapWidth, BitMapHeight,
-        0, 0, WindowWidth, WindowHeight,
-        BitmapMemory,
-        &BitmapInfo,
-        DIB_RGB_COLORS, SRCCOPY);
-}
-
 LRESULT CALLBACK
 Win32MainWindowCallback(HWND Window,
                    UINT Message,
@@ -89,92 +36,124 @@ Win32MainWindowCallback(HWND Window,
     LRESULT Result = 0;
     switch (Message)
     {
-        case WM_SIZE:
-        {
-            RECT ClientRect;
-            GetClientRect(Window, &ClientRect);
-            int Width = ClientRect.right - ClientRect.left;
-            int Height = ClientRect.bottom - ClientRect.top;
-            Win32ResizeDIBSection(Width, Height);
-            OutputDebugStringA("WM_SIZE");
-        }
-        break;
-
-        case WM_CLOSE:
-        {
-            Running = false;
-        }
-        break;
-
         case WM_DESTROY:
         {
             Running = false;
-        }
-        break;
-
-        case WM_ACTIVATEAPP:
-        {
-            OutputDebugStringA("WM_ACTIVATEAPP");
-        }
-        break;
-
-        case WM_PAINT:
-        {
-            PAINTSTRUCT Paint;
-            HDC DeviceContext = BeginPaint(Window, &Paint);
-            
-            int X = Paint.rcPaint.left;
-            int Y = Paint.rcPaint.top;
-            int Height = Paint.rcPaint.bottom - Paint.rcPaint.top;
-            int Width = Paint.rcPaint.right - Paint.rcPaint.left;
-
-            RECT ClientRect;
-            GetClientRect(Window, &ClientRect);
-
-            Win32UpdateWindow(DeviceContext, &ClientRect, X, Y, Width, Height);
-
-            EndPaint(Window, &Paint);
-            OutputDebugStringA("WM_ACTIVATEAPP");
-        }
-        break;
-
-        default:
-        {
-            Result = DefWindowProc(Window, Message, WParam, LParam);
+            PostQuitMessage(0);
+            return 0;
         }
         break;
     }
-    return (Result);
+    return DefWindowProc(Window, Message, WParam, LParam);
 }
 
-int CALLBACK WinMain(HINSTANCE Instance,
-                     HINSTANCE PrevInstance,
-                     LPSTR CommandLine,
-                     int ShowCode)
+void InitD3D(HWND hWnd)
 {
-    WNDCLASS wnd;
-    wnd.cbClsExtra = 0;
-    wnd.cbWndExtra = 0;
-    wnd.hCursor = LoadCursor(0, IDC_ARROW);
-    wnd.hIcon = LoadIcon(0, IDI_WINLOGO);
-    wnd.lpszMenuName = 0;
-    wnd.style = 0;
-    wnd.hbrBackground = 0;
+    OutputDebugStringA("D3D11CreateDeviceAndSwapChain");
+
+    IDXGIFactory *factory;
+    IDXGIAdapter *adapter;
+    IDXGIOutput *output;
+    DXGI_OUTPUT_DESC od;
+
+    CreateDXGIFactory(&IID_IDXGIFactory, &factory);
+    factory->lpVtbl->EnumAdapters(factory, 0, &adapter);
+    adapter->lpVtbl->EnumOutputs(adapter, 0, &output);
+    output->lpVtbl->GetDesc(output, &od);
+    output->lpVtbl->Release(output);
+
+    ZeroMemory(&scd, sizeof(DXGI_SWAP_CHAIN_DESC));
+
+    scd.BufferCount = 1;
+    scd.BufferDesc.Width = 1920;
+    scd.BufferDesc.Height = 1080;
+    scd.BufferDesc.RefreshRate.Numerator = 60;
+    scd.BufferDesc.RefreshRate.Denominator = 1;
+    scd.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+    scd.BufferUsage = DXGI_USAGE_BACK_BUFFER | DXGI_USAGE_RENDER_TARGET_OUTPUT;
+    scd.SampleDesc.Count = 4;
+    scd.OutputWindow = hWnd;
+    scd.Windowed = TRUE;
+
+    D3D11CreateDeviceAndSwapChain(  
+        adapter,
+        D3D_DRIVER_TYPE_UNKNOWN,
+        NULL,
+        D3D11_CREATE_DEVICE_SINGLETHREADED,    
+        NULL,
+        0,
+        D3D11_SDK_VERSION,
+        &scd,
+        &sc,
+        &d3ddev,
+        NULL,
+        &d3dctx);
+
+    sc->lpVtbl->GetBuffer(sc, 0, &IID_ID3D11Texture2D, (void **)&d3dbb);
+
+    D3D11_RENDER_TARGET_VIEW_DESC vd;
+    D3D11_VIEWPORT vp;
+    vd.Format = DXGI_FORMAT_UNKNOWN;
+    vd.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D;
+    vd.Texture2D.MipSlice = 0;
+    d3ddev->lpVtbl->CreateRenderTargetView(d3ddev, d3dbb, &vd, &view);
+
+    d3dctx->lpVtbl->OMSetRenderTargets(d3dctx, 1, &view, NULL);
+    vp.TopLeftX = vp.TopLeftY = 0;
+    vp.Width = 1920;
+    vp.Height = 1080;
+    vp.MinDepth = 0;
+    vp.MaxDepth = 1;
+    d3dctx->lpVtbl->RSSetViewports(d3dctx, 1, &vp);
+}
+
+void RenderFrame(void){
+    float color[4] = {rand() % 256 * (1.0f / 256), 0, 0, 1};
+    d3dctx->lpVtbl->ClearRenderTargetView(d3dctx, view, color);
+    sc->lpVtbl->Present(sc, 0, 0);
+   
+}
+
+void CleanD3D()
+{
+    sc->lpVtbl->Release(sc);
+    view->lpVtbl->Release(view);
+    d3ddev->lpVtbl->Release(d3ddev);
+    d3dctx->lpVtbl->Release(d3dctx);
+}
+
+int CALLBACK
+WinMain(HINSTANCE Instance,
+        HINSTANCE PrevInstance,
+        LPSTR CommandLine,
+        int ShowCode)
+{
+    HWND WindowHandle;
+    WNDCLASSEX wnd;
+    ZeroMemory(&wnd, sizeof(WNDCLASSEX));
+
+    wnd.cbSize = sizeof(WNDCLASSEX);
+    wnd.style = CS_HREDRAW | CS_VREDRAW;
     wnd.lpfnWndProc = Win32MainWindowCallback;
     wnd.hInstance = Instance;
+    wnd.hCursor = LoadCursor(0, IDC_ARROW);
+    wnd.hbrBackground = (HBRUSH)COLOR_WINDOW;
     wnd.lpszClassName = "Window Class";
 
-    RegisterClass(&wnd);
+    RegisterClassEx(&wnd);
 
-    HWND WindowHandle = CreateWindowEx(
+    RECT wr = {0, 0, 1920, 1080};
+    AdjustWindowRect(&wr, WS_OVERLAPPEDWINDOW, FALSE);
+
+    WindowHandle = CreateWindowEx(
         0,
         "Window Class",
         "Windows Programming",
         WS_OVERLAPPEDWINDOW,
-        CW_USEDEFAULT,
-        CW_USEDEFAULT,
-        CW_USEDEFAULT,
-        CW_USEDEFAULT,
+        0,
+        0,
+        wr.right - wr.left,
+        wr.bottom - wr.top,
         NULL,
         NULL,
         Instance,
@@ -186,37 +165,28 @@ int CALLBACK WinMain(HINSTANCE Instance,
         return -1;
     }
 
+    InitD3D(WindowHandle);
+
     ShowWindow(WindowHandle, ShowCode);
-    int XOffset = 0;
-    int YOffset = 0;
-    
-    Running = true;
-    while (Running > 0)
+
+    MSG Message = {0};
+    while(TRUE)
     {
-       
-        MSG Message;
-        while (PeekMessage(&Message, 0, 0, 0, PM_REMOVE) > 0)
+        if (PeekMessage(&Message, 0, 0, 0, PM_REMOVE) > 0)
         {
-            if(Message.message == WM_QUIT) {
-                Running = false;
-            }
             TranslateMessage(&Message);
             DispatchMessage(&Message);
+            if(Message.message == WM_QUIT) {
+                break;
+            }
+        } else {
+            
         }
 
-        DrawGradient(XOffset, YOffset);
-
-        HDC DeviceContext = GetDC(WindowHandle);
-        RECT ClientRect;
-        GetClientRect(WindowHandle, &ClientRect);
-        int Height = ClientRect.bottom - ClientRect.top;
-        int Width = ClientRect.right - ClientRect.left;
-        Win32UpdateWindow(DeviceContext, &ClientRect, 0, 0, Width, Height);
-        ReleaseDC(WindowHandle, DeviceContext);
-
-        ++XOffset;
-        ++YOffset;
+        RenderFrame();
     }
 
-    return 0;
+    CleanD3D();
+
+    return Message.wParam;
 }
