@@ -1,25 +1,15 @@
-//https : //community.khronos.org/t/avoiding-the-default-framebuffer-blit-overhead/68813
-
 #include <windows.h>
-
-#define INITGUID
 #include <d3d11.h>
 
 #include <stdbool.h>
 #include <stdint.h>
 
-        ID3D11Device *d3ddev;
+ID3D11Device *d3ddev;
 ID3D11DeviceContext *d3dctx;
 IDXGISwapChain *sc;
-DXGI_SWAP_CHAIN_DESC scd;
+
 ID3D11Texture2D *d3dbb;
 ID3D11RenderTargetView *view;
-
-void InitD3D(HWND hWnd);
-void CleanD3D(void);
-
-typedef uint8_t uint8;
-typedef uint32_t uint32;
 
 static bool Running;
 static BITMAPINFO BitmapInfo;
@@ -49,8 +39,6 @@ Win32MainWindowCallback(HWND Window,
 
 void InitD3D(HWND hWnd)
 {
-    OutputDebugStringA("D3D11CreateDeviceAndSwapChain");
-
     IDXGIFactory *factory;
     IDXGIAdapter *adapter;
     IDXGIOutput *output;
@@ -62,56 +50,56 @@ void InitD3D(HWND hWnd)
     output->lpVtbl->GetDesc(output, &od);
     output->lpVtbl->Release(output);
 
+    DXGI_SWAP_CHAIN_DESC scd;
     ZeroMemory(&scd, sizeof(DXGI_SWAP_CHAIN_DESC));
 
-    scd.BufferCount = 1;
-    scd.BufferDesc.Width = 1920;
-    scd.BufferDesc.Height = 1080;
-    scd.BufferDesc.RefreshRate.Numerator = 60;
-    scd.BufferDesc.RefreshRate.Denominator = 1;
-    scd.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-    scd.BufferUsage = DXGI_USAGE_BACK_BUFFER | DXGI_USAGE_RENDER_TARGET_OUTPUT;
-    scd.SampleDesc.Count = 4;
-    scd.OutputWindow = hWnd;
+    scd.BufferCount = 1;                                
+    scd.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM; 
+    scd.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;  
+    scd.OutputWindow = hWnd;                            
+    scd.SampleDesc.Count = 4;                           
     scd.Windowed = TRUE;
 
-    D3D11CreateDeviceAndSwapChain(  
-        adapter,
-        D3D_DRIVER_TYPE_UNKNOWN,
-        NULL,
-        D3D11_CREATE_DEVICE_SINGLETHREADED,    
-        NULL,
-        0,
-        D3D11_SDK_VERSION,
-        &scd,
-        &sc,
-        &d3ddev,
-        NULL,
-        &d3dctx);
+    D3D_FEATURE_LEVEL FeatureLevelsRequested = D3D_FEATURE_LEVEL_11_0;
+    UINT numLevelsRequested = 1;
+    D3D_FEATURE_LEVEL FeatureLevelsSupported;
+    HRESULT hr;
+    hr = D3D11CreateDeviceAndSwapChain(NULL,
+                                       D3D_DRIVER_TYPE_HARDWARE,
+                                       NULL,
+                                       NULL,
+                                       NULL,
+                                       NULL,
+                                       D3D11_SDK_VERSION,
+                                       &scd,
+                                       &sc,
+                                       &d3ddev,
+                                       NULL,
+                                       &d3dctx);
+    
 
-    sc->lpVtbl->GetBuffer(sc, 0, &IID_ID3D11Texture2D, (void **)&d3dbb);
-
+    hr = sc->lpVtbl->GetBuffer(sc, 0, &IID_ID3D11Texture2D, (void **)&d3dbb);
+    if (FAILED(hr))
+    {
+        OutputDebugStringA("GetBuffer FAILED");
+        return;
+    }
+    
     D3D11_RENDER_TARGET_VIEW_DESC vd;
     D3D11_VIEWPORT vp;
     vd.Format = DXGI_FORMAT_UNKNOWN;
     vd.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D;
     vd.Texture2D.MipSlice = 0;
-    d3ddev->lpVtbl->CreateRenderTargetView(d3ddev, d3dbb, &vd, &view);
+    hr = d3ddev->lpVtbl->CreateRenderTargetView(d3ddev, d3dbb, NULL, &view);
 
     d3dctx->lpVtbl->OMSetRenderTargets(d3dctx, 1, &view, NULL);
-    vp.TopLeftX = vp.TopLeftY = 0;
-    vp.Width = 1920;
-    vp.Height = 1080;
-    vp.MinDepth = 0;
-    vp.MaxDepth = 1;
+    vp.Width = 640;
+    vp.Height = 480;
+    vp.MinDepth = 0.0f;
+    vp.MaxDepth = 1.0f;
+    vp.TopLeftX = 0;
+    vp.TopLeftY = 0;
     d3dctx->lpVtbl->RSSetViewports(d3dctx, 1, &vp);
-}
-
-void RenderFrame(void){
-    float color[4] = {rand() % 256 * (1.0f / 256), 0, 0, 1};
-    d3dctx->lpVtbl->ClearRenderTargetView(d3dctx, view, color);
-    sc->lpVtbl->Present(sc, 0, 0);
-   
 }
 
 void CleanD3D()
@@ -120,6 +108,19 @@ void CleanD3D()
     view->lpVtbl->Release(view);
     d3ddev->lpVtbl->Release(d3ddev);
     d3dctx->lpVtbl->Release(d3dctx);
+}
+
+void RenderFrame()
+{
+    float color[4] = {255,255,0,255};
+    d3dctx->lpVtbl->ClearRenderTargetView(d3dctx, view, color);
+
+    HRESULT res = sc->lpVtbl->Present(sc, 0, 0);
+    if (res != S_OK)
+    {
+        OutputDebugStringA("Present failed");
+        return;
+    }
 }
 
 int CALLBACK
@@ -139,7 +140,6 @@ WinMain(HINSTANCE Instance,
     wnd.hCursor = LoadCursor(0, IDC_ARROW);
     wnd.hbrBackground = (HBRUSH)COLOR_WINDOW;
     wnd.lpszClassName = "Window Class";
-
     RegisterClassEx(&wnd);
 
     RECT wr = {0, 0, 1920, 1080};
@@ -190,3 +190,53 @@ WinMain(HINSTANCE Instance,
 
     return Message.wParam;
 }
+
+/*
+if (FAILED(hr))
+{
+    OutputDebugStringA("FAILED CreateRenderTargetView ");
+    if (hr == DXGI_ERROR_NOT_CURRENTLY_AVAILABLE)
+    {
+        OutputDebugStringA("DXGI_ERROR_NOT_CURRENTLY_AVAILABLE ");
+    }
+
+    if (hr == D3D11_CREATE_DEVICE_DEBUG)
+    {
+        OutputDebugStringA("DXGI_ERROR_NOT_CURRENTLY_AVAILABLE ");
+    }
+
+    switch (hr)
+    {
+    case D3D11_ERROR_FILE_NOT_FOUND:
+        OutputDebugStringA("D3D11_ERROR_FILE_NOT_FOUND");
+        break;
+    case D3D11_ERROR_TOO_MANY_UNIQUE_STATE_OBJECTS:
+        OutputDebugStringA("D3D11_ERROR_TOO_MANY_UNIQUE_STATE_OBJECTS");
+        break;
+    case D3D11_ERROR_TOO_MANY_UNIQUE_VIEW_OBJECTS:
+        OutputDebugStringA("D3D11_ERROR_TOO_MANY_UNIQUE_VIEW_OBJECTS");
+        break;
+    case D3D11_ERROR_DEFERRED_CONTEXT_MAP_WITHOUT_INITIAL_DISCARD:
+        OutputDebugStringA("D3D11_ERROR_DEFERRED_CONTEXT_MAP_WITHOUT_INITIAL_DISCARD");
+        break;
+    case E_FAIL:
+        OutputDebugStringA("E_FAIL");
+        break;
+    case E_INVALIDARG:
+        OutputDebugStringA("E_INVALIDARG");
+        break;
+    case E_OUTOFMEMORY:
+        OutputDebugStringA("E_OUTOFMEMORY");
+        break;
+    case E_NOTIMPL:
+        OutputDebugStringA("E_NOTIMPL");
+        break;
+    case S_FALSE:
+        OutputDebugStringA("S_FALSE");
+        break;
+    default:
+        OutputDebugStringA("??");
+        break;
+    }
+}
+*/
