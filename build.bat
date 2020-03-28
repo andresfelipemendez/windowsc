@@ -1,1 +1,3 @@
-clang -I"C:\Program Files (x86)\Windows Kits\10\Include" -L"C:\Program Files (x86)\Windows Kits\10\Lib" -lUser32 -lGdi32 -ldxguid -lDXGI -lD3D11 -Wno-missing-declarations -Wno-invalid-token-paste -Wno-unused-value -std=c99 -x c test.c 
+del a.exe
+clang -I"C:\Program Files (x86)\Windows Kits\10\Include" -I"C:\Program Files (x86)\Microsoft DirectX SDK (June 2010)\Include" -L"C:\Program Files (x86)\Windows Kits\10\Lib" -L"C:\Program Files (x86)\Microsoft DirectX SDK (June 2010)\Lib\x64" -lUser32 -lGdi32 -ldxguid -lDXGI -lD3D11 -lD3DX11 -lD3DCompiler -Wno-missing-declarations -Wno-invalid-token-paste -Wno-unused-value -std=c99 -x c test.c 
+a.exe
