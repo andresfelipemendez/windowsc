@@ -120,6 +120,65 @@ Win32MainWindowCallback(HWND Window,
             return 0;
         }
         break;
+        case WM_SYSKEYDOWN:
+        case WM_SYSKEYUP:
+        case WM_KEYDOWN:
+        case WM_KEYUP:
+        {
+            uint32_t VKCode = WParam;
+            bool wasdown = ((LParam & (1 << 30)) != 0);
+            bool isdown = ((LParam & (1 << 31)) == 0);
+            switch (VKCode)
+            {
+            case 'W':
+
+                break;
+            case 'A':
+                
+                break;
+            case 'S':
+
+                break;
+            case 'D':
+
+                break;
+            case 'Q':
+
+                break;
+            case 'E':
+
+                break;
+            case VK_UP:
+
+                break;
+            case VK_LEFT:
+
+                break;
+            case VK_DOWN:
+
+                break;
+            case VK_RIGHT:
+
+                break;
+            case VK_ESCAPE:
+                OutputDebugStringA("ESCAPE:");
+                if (wasdown){
+                    OutputDebugStringA("was down");
+                }
+                if(isdown) {
+                    OutputDebugStringA("is down");
+                }
+                OutputDebugStringA("\n");
+                break;
+            case VK_SPACE:
+
+                break;
+
+            default:
+                break;
+            }
+        }
+        break;
     }
     return DefWindowProc(Window, Message, WParam, LParam);
 }
@@ -342,7 +401,6 @@ WinMain(HINSTANCE Instance,
             XINPUT_STATE state;
             if(XInputGetState(ControllerIndex,&state) == ERROR_SUCCESS)
             {
-                OutputDebugStringA("connected");
                 XINPUT_GAMEPAD *pad = &state.Gamepad;
 
                 int16_t x = pad->sThumbLX;
@@ -350,17 +408,11 @@ WinMain(HINSTANCE Instance,
                 char str[80];
 
                 sprintf(str, "My variable is %d %d\n", x, y);
-                OutputDebugString(str);
-
-                OutputDebugStringA(str);
 
             } else {
                 //OutputDebugStringA("controller not connected");
             }
-            /* code */
         }
-        
-
         RenderFrame();
     }
 
