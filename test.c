@@ -1,9 +1,13 @@
 #include <windows.h>
 #include <d3d11.h>
 #include <D3DX11async.h>
+#include <XInput.h>
 
+#include <stdio.h>
+#include <string.h>
 #include <stdbool.h>
 #include <stdint.h>
+
 
 ID3D11Device *d3ddev;
 ID3D11DeviceContext *d3dctx;
@@ -20,7 +24,36 @@ ID3D11Buffer *pVBuffer;
 const int SCREEN_WIDTH = 800;
 const int SCREEN_HEIGHT = 600;
 
-typedef struct {
+#define X_INPUT_GET_STATE(name) DWORD name(DWORD dwUserIndex, XINPUT_STATE *pState)
+typedef X_INPUT_GET_STATE(x_input_get_state);
+X_INPUT_GET_STATE(XInputGetStateStub)
+{
+    return (0);
+}
+static x_input_get_state *XInputGetState_ = XInputGetStateStub;
+#define XInputGetState XInputGetState_
+
+#define X_INPUT_SET_STATE(name) DWORD name(DWORD dwUserIndex, XINPUT_VIBRATION *pState)
+typedef X_INPUT_SET_STATE(x_input_set_state);
+X_INPUT_GET_STATE(XInputSetStateStub)
+{
+    return (0);
+}
+static x_input_set_state *XInputSetState_ = XInputSetStateStub;
+#define XInputSetState XInputSetState_
+
+void Wind32LoadXInput(void)
+{
+    HMODULE XIinputLibrary = LoadLibrary("xinput1_3.dll");
+    if (XIinputLibrary)
+    {
+        XInputGetState = (x_input_get_state*)GetProcAddress(XIinputLibrary, "XInputGetState");
+        XInputSetState = (x_input_set_state*)GetProcAddress(XIinputLibrary, "XInputGetState");
+    }
+}
+
+typedef struct
+{
     float X, Y, Z;
     float color[4];
 } VERTEX;
@@ -250,6 +283,8 @@ WinMain(HINSTANCE Instance,
         LPSTR CommandLine,
         int ShowCode)
 {
+    Wind32LoadXInput();
+
     HWND WindowHandle;
     WNDCLASSEX wnd;
     ZeroMemory(&wnd, sizeof(WNDCLASSEX));
@@ -301,6 +336,30 @@ WinMain(HINSTANCE Instance,
                 break;
             }
         }
+
+        for (DWORD ControllerIndex = 0; ControllerIndex < 4; ControllerIndex++)
+        {
+            XINPUT_STATE state;
+            if(XInputGetState(ControllerIndex,&state) == ERROR_SUCCESS)
+            {
+                OutputDebugStringA("connected");
+                XINPUT_GAMEPAD *pad = &state.Gamepad;
+
+                int16_t x = pad->sThumbLX;
+                int16_t y = pad->sThumbLY;
+                char str[80];
+
+                sprintf(str, "My variable is %d %d\n", x, y);
+                OutputDebugString(str);
+
+                OutputDebugStringA(str);
+
+            } else {
+                //OutputDebugStringA("controller not connected");
+            }
+            /* code */
+        }
+        
 
         RenderFrame();
     }
