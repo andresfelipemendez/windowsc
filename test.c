@@ -2,6 +2,7 @@
 #include <d3d11.h>
 #include <D3DX11async.h>
 #include <XInput.h>
+#include <d3dx10math.h>
 
 #include <stdio.h>
 #include <string.h>
@@ -16,10 +17,12 @@ IDXGISwapChain *sc;
 ID3D11Texture2D *d3dbb;
 ID3D11RenderTargetView *view;
 
-ID3D11InputLayout *pLayout;
+ID3D11InputLayout *m_layout;
 ID3D11VertexShader *pVS;
 ID3D11PixelShader *pPS;
 ID3D11Buffer *pVBuffer;
+
+ID3D11Buffer *m_matrixBuffer;
 
 const int SCREEN_WIDTH = 800;
 const int SCREEN_HEIGHT = 600;
@@ -51,6 +54,12 @@ void Wind32LoadXInput(void)
         XInputSetState = (x_input_set_state*)GetProcAddress(XIinputLibrary, "XInputGetState");
     }
 }
+typedef struct
+{
+    D3DXMATRIX world;
+    D3DXMATRIX view;
+    D3DXMATRIX projection;
+} MatrixBufferType;
 
 typedef struct
 {
@@ -103,6 +112,15 @@ void checkres(HRESULT hr)
     {
         OutputDebugStringA("SUCCES!!!");
     }
+}
+
+D3DXVECTOR3 add(D3DXVECTOR3 a, D3DXVECTOR3 b)
+{
+    D3DXVECTOR3 r;
+    r.x = a.x + b.x;
+    r.y = a.y + b.y;
+    r.z = a.z + b.z;
+    return r;
 }
 
 LRESULT CALLBACK
@@ -203,8 +221,8 @@ void InitPipeline()
             {"COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0}
         };
 
-    d3ddev->lpVtbl->CreateInputLayout(d3ddev, ied, 2, VS->lpVtbl->GetBufferPointer(VS), VS->lpVtbl->GetBufferSize(VS), &pLayout);
-    d3dctx->lpVtbl->IASetInputLayout(d3dctx, pLayout);
+    d3ddev->lpVtbl->CreateInputLayout(d3ddev, ied, 2, VS->lpVtbl->GetBufferPointer(VS), VS->lpVtbl->GetBufferSize(VS), &m_layout);
+    d3dctx->lpVtbl->IASetInputLayout(d3dctx, m_layout);
 }
 
 void InitGraphics()
@@ -314,12 +332,93 @@ void CleanD3D()
     d3dctx->lpVtbl->Release(d3dctx);
 }
 
+void SetShaderParameters(
+    D3DXMATRIX worldMatrix,
+    D3DXMATRIX viewMatrix,
+    D3DXMATRIX projectionMatrix)
+{
+    HRESULT result;
+    D3D11_MAPPED_SUBRESOURCE mappedResource;
+    MatrixBufferType *dataPtr;
+    unsigned int bufferNumber;
+
+    D3DXMatrixTranspose(&worldMatrix, &worldMatrix);
+    D3DXMatrixTranspose(&viewMatrix, &viewMatrix);
+    D3DXMatrixTranspose(&projectionMatrix, &projectionMatrix);
+
+    
+    result = d3dctx->lpVtbl->Map(d3dctx, m_matrixBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResource);
+    dataPtr = (MatrixBufferType*)mappedResource.pData;
+
+    dataPtr->world = worldMatrix;
+    dataPtr->view = viewMatrix;
+    dataPtr->projection = projectionMatrix;
+
+    d3dctx->lpVtbl->Unmap(d3dctx, m_matrixBuffer, 0);
+    bufferNumber = 0;
+    d3dctx->lpVtbl->VSSetConstantBuffers(d3dctx, bufferNumber, 1, &m_matrixBuffer);
+}
+
+void perspective () {
+    D3DXMATRIX viewMatrix, projectionMatrix, worldMatrix;
+
+    D3DXVECTOR3 up, position, lookAt;
+    float yaw, pitch, roll;
+    D3DMATRIX rotationMatrix;
+
+    up.x = 0.0;
+    up.x = 1.0;
+    up.x = 0.0;
+
+    position.x = 10;
+    position.y = 1;
+    position.z = 0;
+
+    lookAt.x = 0.0f;
+    lookAt.y = 0.0f;
+    lookAt.z = 1.0f;
+
+    pitch = 0;
+    yaw = 0;
+    roll = 0;
+
+    D3DXMatrixRotationYawPitchRoll(&rotationMatrix, yaw, pitch, roll);
+
+    D3DXVec3TransformCoord(&lookAt, &lookAt, &rotationMatrix);
+    D3DXVec3TransformCoord(&up, &up, &rotationMatrix);
+
+    lookAt = add(position, lookAt);
+
+    D3DXMatrixLookAtLH(&viewMatrix, &position, &lookAt, &up);
+
+
+    float fieldOfView = (float)D3DX_PI / 4.0f;
+    float screenAspect = (float)SCREEN_WIDTH / (float)SCREEN_HEIGHT;
+    D3DXMatrixPerspectiveFovLH(&projectionMatrix, fieldOfView, screenAspect, 0.3f, 100.0f);
+
+    D3DXMatrixIdentity(&worldMatrix);
+
+    D3D11_BUFFER_DESC matrixBufferDesc;
+    matrixBufferDesc.Usage = D3D11_USAGE_DYNAMIC;
+    matrixBufferDesc.ByteWidth = sizeof(MatrixBufferType);
+    matrixBufferDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+    matrixBufferDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+    matrixBufferDesc.MiscFlags = 0;
+    matrixBufferDesc.StructureByteStride = 0;
+    HRESULT result = d3ddev->lpVtbl->CreateBuffer(d3ddev, & matrixBufferDesc, NULL, &m_matrixBuffer);
+
+    SetShaderParameters(worldMatrix, viewMatrix, projectionMatrix);
+}
+
 void RenderFrame()
 {
     float color[4] = {255,255,0,255};
     d3dctx->lpVtbl->ClearRenderTargetView(d3dctx, view, color);
 
-    UINT stride =sizeof(VERTEX);
+    //d3dctx->lpVtbl->setshaderparameters
+    perspective();
+
+    UINT stride = sizeof(VERTEX);
     UINT offset = 0;
     d3dctx->lpVtbl->IASetVertexBuffers(d3dctx, 0, 1, &pVBuffer, &stride, &offset);
 
@@ -327,7 +426,7 @@ void RenderFrame()
 
     d3dctx->lpVtbl->Draw(d3dctx, 3, 0);
 
-        HRESULT res = sc->lpVtbl->Present(sc, 0, 0);
+    HRESULT res = sc->lpVtbl->Present(sc, 0, 0);
     if (res != S_OK)
     {
         OutputDebugStringA("Present failed");

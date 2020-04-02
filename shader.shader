@@ -1,3 +1,10 @@
+cbuffer MatrixBuffer
+{
+    matrix worldMatrix;
+    matrix viewMatrix;
+    matrix projectionMatrix;
+};
+
 struct VOut
 {
     float4 position : SV_POSITION;
