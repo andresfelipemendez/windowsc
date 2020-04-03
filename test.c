@@ -367,12 +367,12 @@ void perspective () {
     D3DMATRIX rotationMatrix;
 
     up.x = 0.0;
-    up.x = 1.0;
-    up.x = 0.0;
+    up.y = 1.0;
+    up.z = 0.0;
 
-    position.x = 10;
-    position.y = 1;
-    position.z = 0;
+    position.x = 0.05;
+    position.y = 0;
+    position.z = -3.15;
 
     lookAt.x = 0.0f;
     lookAt.y = 0.0f;
@@ -394,7 +394,7 @@ void perspective () {
 
     float fieldOfView = (float)D3DX_PI / 4.0f;
     float screenAspect = (float)SCREEN_WIDTH / (float)SCREEN_HEIGHT;
-    D3DXMatrixPerspectiveFovLH(&projectionMatrix, fieldOfView, screenAspect, 0.3f, 100.0f);
+    D3DXMatrixPerspectiveFovLH(&projectionMatrix, fieldOfView, screenAspect, 0.03f, 100.0f);
 
     D3DXMatrixIdentity(&worldMatrix);
 
