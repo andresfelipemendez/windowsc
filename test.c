@@ -24,6 +24,12 @@ ID3D11Buffer *pVBuffer;
 
 ID3D11Buffer *m_matrixBuffer;
 
+LARGE_INTEGER endCounter;
+LARGE_INTEGER beginCounter;
+float mxperframe = 0;
+
+float posx = 0;
+
 const int SCREEN_WIDTH = 800;
 const int SCREEN_HEIGHT = 600;
 
@@ -123,6 +129,8 @@ D3DXVECTOR3 add(D3DXVECTOR3 a, D3DXVECTOR3 b)
     return r;
 }
 
+
+
 LRESULT CALLBACK
 Win32MainWindowCallback(HWND Window,
                    UINT Message,
@@ -152,13 +160,13 @@ Win32MainWindowCallback(HWND Window,
 
                 break;
             case 'A':
-                
+                posx -= mxperframe;
                 break;
             case 'S':
 
                 break;
             case 'D':
-
+                posx += mxperframe;
                 break;
             case 'Q':
 
@@ -179,15 +187,8 @@ Win32MainWindowCallback(HWND Window,
 
                 break;
             case VK_ESCAPE:
-                OutputDebugStringA("ESCAPE:");
-                if (wasdown){
-                    OutputDebugStringA("was down");
-                }
-                if(isdown) {
-                    OutputDebugStringA("is down");
-                }
-                OutputDebugStringA("\n");
-                break;
+                PostQuitMessage(0);
+                return 0;
             case VK_SPACE:
 
                 break;
@@ -370,7 +371,7 @@ void perspective () {
     up.y = 1.0;
     up.z = 0.0;
 
-    position.x = 0.05;
+    position.x = posx;
     position.y = 0;
     position.z = -3.15;
 
@@ -441,6 +442,10 @@ WinMain(HINSTANCE Instance,
         LPSTR CommandLine,
         int ShowCode)
 {
+    LARGE_INTEGER perfCountFreq;
+    QueryPerformanceFrequency(&perfCountFreq);
+    int64_t perfCountFrequency = perfCountFreq.QuadPart;
+
     Wind32LoadXInput();
 
     HWND WindowHandle;
@@ -483,9 +488,13 @@ WinMain(HINSTANCE Instance,
 
     ShowWindow(WindowHandle, ShowCode);
 
+    OutputDebugStringA("start");
+    QueryPerformanceCounter(&beginCounter);
     MSG Message = {0};
     while(TRUE)
     {
+        
+
         if (PeekMessage(&Message, 0, 0, 0, PM_REMOVE) > 0)
         {
             TranslateMessage(&Message);
@@ -513,6 +522,16 @@ WinMain(HINSTANCE Instance,
             }
         }
         RenderFrame();
+
+        QueryPerformanceCounter(&endCounter);
+        float counterElapsed = (float)(endCounter.QuadPart - beginCounter.QuadPart);
+        mxperframe = ((1000.0f * counterElapsed) / (float)perfCountFrequency);
+
+        char buffer[256];
+        sprintf(buffer, "Millisecond/frame: %f ms\n", mxperframe);
+        OutputDebugStringA(buffer);
+
+        beginCounter = endCounter;
     }
 
     CleanD3D();
