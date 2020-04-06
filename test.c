@@ -6,8 +6,17 @@
 
 #include <stdio.h>
 #include <string.h>
-#include <stdbool.h>
 #include <stdint.h>
+
+#include "engine.c"
+
+typedef struct
+{
+    D3DXMATRIX world;
+    D3DXMATRIX view;
+    D3DXMATRIX projection;
+} MatrixBufferType;
+
 
 
 ID3D11Device *d3ddev;
@@ -60,18 +69,7 @@ void Wind32LoadXInput(void)
         XInputSetState = (x_input_set_state*)GetProcAddress(XIinputLibrary, "XInputGetState");
     }
 }
-typedef struct
-{
-    D3DXMATRIX world;
-    D3DXMATRIX view;
-    D3DXMATRIX projection;
-} MatrixBufferType;
 
-typedef struct
-{
-    float X, Y, Z;
-    float color[4];
-} VERTEX;
 
 void checkres(HRESULT hr)
 {
@@ -120,17 +118,6 @@ void checkres(HRESULT hr)
     }
 }
 
-D3DXVECTOR3 add(D3DXVECTOR3 a, D3DXVECTOR3 b)
-{
-    D3DXVECTOR3 r;
-    r.x = a.x + b.x;
-    r.y = a.y + b.y;
-    r.z = a.z + b.z;
-    return r;
-}
-
-
-
 LRESULT CALLBACK
 Win32MainWindowCallback(HWND Window,
                    UINT Message,
@@ -160,13 +147,13 @@ Win32MainWindowCallback(HWND Window,
 
                 break;
             case 'A':
-                posx -= mxperframe;
+                posx += mxperframe;
                 break;
             case 'S':
 
                 break;
             case 'D':
-                posx += mxperframe;
+                posx -= mxperframe;
                 break;
             case 'Q':
 
@@ -320,19 +307,6 @@ void InitD3D(HWND hWnd)
     InitGraphics();
 }
 
-void CleanD3D()
-{
-    sc->lpVtbl->SetFullscreenState(sc, FALSE, NULL);
-
-    pVS->lpVtbl->Release(pVS);
-    pPS->lpVtbl->Release(pPS);
-
-    sc->lpVtbl->Release(sc);
-    view->lpVtbl->Release(view);
-    d3ddev->lpVtbl->Release(d3ddev);
-    d3dctx->lpVtbl->Release(d3dctx);
-}
-
 void SetShaderParameters(
     D3DXMATRIX worldMatrix,
     D3DXMATRIX viewMatrix,
@@ -347,9 +321,8 @@ void SetShaderParameters(
     D3DXMatrixTranspose(&viewMatrix, &viewMatrix);
     D3DXMatrixTranspose(&projectionMatrix, &projectionMatrix);
 
-    
     result = d3dctx->lpVtbl->Map(d3dctx, m_matrixBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResource);
-    dataPtr = (MatrixBufferType*)mappedResource.pData;
+    dataPtr = (MatrixBufferType *)mappedResource.pData;
 
     dataPtr->world = worldMatrix;
     dataPtr->view = viewMatrix;
@@ -360,30 +333,13 @@ void SetShaderParameters(
     d3dctx->lpVtbl->VSSetConstantBuffers(d3dctx, bufferNumber, 1, &m_matrixBuffer);
 }
 
-void perspective () {
-    D3DXMATRIX viewMatrix, projectionMatrix, worldMatrix;
+void SetWorldViewProojectionMatrix(vector3 up, vector3 position, vector3 lookAt, vector3 rot)
+{
 
-    D3DXVECTOR3 up, position, lookAt;
-    float yaw, pitch, roll;
+    D3DMATRIX viewMatrix, projectionMatrix, worldMatrix;
     D3DMATRIX rotationMatrix;
 
-    up.x = 0.0;
-    up.y = 1.0;
-    up.z = 0.0;
-
-    position.x = posx;
-    position.y = 0;
-    position.z = -3.15;
-
-    lookAt.x = 0.0f;
-    lookAt.y = 0.0f;
-    lookAt.z = 1.0f;
-
-    pitch = 0;
-    yaw = 0;
-    roll = 0;
-
-    D3DXMatrixRotationYawPitchRoll(&rotationMatrix, yaw, pitch, roll);
+    D3DXMatrixRotationYawPitchRoll(&rotationMatrix, rot.x, rot.y, rot.z);
 
     D3DXVec3TransformCoord(&lookAt, &lookAt, &rotationMatrix);
     D3DXVec3TransformCoord(&up, &up, &rotationMatrix);
@@ -392,8 +348,7 @@ void perspective () {
 
     D3DXMatrixLookAtLH(&viewMatrix, &position, &lookAt, &up);
 
-
-    float fieldOfView = (float)D3DX_PI / 4.0f;
+    float fieldOfView = (float)PI / 4.0f;
     float screenAspect = (float)SCREEN_WIDTH / (float)SCREEN_HEIGHT;
     D3DXMatrixPerspectiveFovLH(&projectionMatrix, fieldOfView, screenAspect, 0.03f, 100.0f);
 
@@ -406,25 +361,23 @@ void perspective () {
     matrixBufferDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
     matrixBufferDesc.MiscFlags = 0;
     matrixBufferDesc.StructureByteStride = 0;
-    HRESULT result = d3ddev->lpVtbl->CreateBuffer(d3ddev, & matrixBufferDesc, NULL, &m_matrixBuffer);
+    HRESULT result = d3ddev->lpVtbl->CreateBuffer(d3ddev, &matrixBufferDesc, NULL, &m_matrixBuffer);
 
     SetShaderParameters(worldMatrix, viewMatrix, projectionMatrix);
 }
 
-void RenderFrame()
+void Clear(float *color)
 {
-    float color[4] = {255,255,0,255};
     d3dctx->lpVtbl->ClearRenderTargetView(d3dctx, view, color);
+}
 
-    //d3dctx->lpVtbl->setshaderparameters
-    perspective();
-
-    UINT stride = sizeof(VERTEX);
-    UINT offset = 0;
-    d3dctx->lpVtbl->IASetVertexBuffers(d3dctx, 0, 1, &pVBuffer, &stride, &offset);
-
+void SetVertexBuffer(unsigned int *stride, unsigned int *offset)
+{
+    d3dctx->lpVtbl->IASetVertexBuffers(d3dctx, 0, 1, &pVBuffer, stride, offset);
     d3dctx->lpVtbl->IASetPrimitiveTopology(d3dctx, D3D10_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+}
 
+void Draw() {
     d3dctx->lpVtbl->Draw(d3dctx, 3, 0);
 
     HRESULT res = sc->lpVtbl->Present(sc, 0, 0);
@@ -434,6 +387,22 @@ void RenderFrame()
         return;
     }
 }
+
+void CleanD3D()
+{
+    sc->lpVtbl->SetFullscreenState(sc, FALSE, NULL);
+
+    pVS->lpVtbl->Release(pVS);
+    pPS->lpVtbl->Release(pPS);
+
+    sc->lpVtbl->Release(sc);
+    view->lpVtbl->Release(view);
+    d3ddev->lpVtbl->Release(d3ddev);
+    d3dctx->lpVtbl->Release(d3dctx);
+}
+
+
+
 
 
 int CALLBACK
@@ -469,7 +438,7 @@ WinMain(HINSTANCE Instance,
         "Window Class",
         "Windows Programming",
         WS_OVERLAPPEDWINDOW,
-        0,
+        3432,
         0,
         SCREEN_WIDTH,
         SCREEN_HEIGHT,
@@ -493,8 +462,6 @@ WinMain(HINSTANCE Instance,
     MSG Message = {0};
     while(TRUE)
     {
-        
-
         if (PeekMessage(&Message, 0, 0, 0, PM_REMOVE) > 0)
         {
             TranslateMessage(&Message);
@@ -524,9 +491,9 @@ WinMain(HINSTANCE Instance,
         RenderFrame();
 
         QueryPerformanceCounter(&endCounter);
-        float counterElapsed = (float)(endCounter.QuadPart - beginCounter.QuadPart);
-        mxperframe = ((1000.0f * counterElapsed) / (float)perfCountFrequency);
-
+        float elapsed = (float)(endCounter.QuadPart - beginCounter.QuadPart);
+        mxperframe = ((1000.0f * elapsed) / (float)perfCountFrequency);
+        mxperframe = mxperframe < 33.33f ? mxperframe : 33.33f; 
         char buffer[256];
         sprintf(buffer, "Millisecond/frame: %f ms\n", mxperframe);
         OutputDebugStringA(buffer);
