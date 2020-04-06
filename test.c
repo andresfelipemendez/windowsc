@@ -3,12 +3,7 @@
 #include <D3DX11async.h>
 #include <XInput.h>
 #include <d3dx10math.h>
-
-#include <stdio.h>
-#include <string.h>
-#include <stdint.h>
-
-#include "engine.c"
+#include "engine.h"
 
 typedef struct
 {
@@ -16,8 +11,6 @@ typedef struct
     D3DXMATRIX view;
     D3DXMATRIX projection;
 } MatrixBufferType;
-
-
 
 ID3D11Device *d3ddev;
 ID3D11DeviceContext *d3dctx;
@@ -53,23 +46,39 @@ static x_input_get_state *XInputGetState_ = XInputGetStateStub;
 
 #define X_INPUT_SET_STATE(name) DWORD name(DWORD dwUserIndex, XINPUT_VIBRATION *pState)
 typedef X_INPUT_SET_STATE(x_input_set_state);
-X_INPUT_GET_STATE(XInputSetStateStub)
+X_INPUT_SET_STATE(XInputSetStateStub)
 {
     return (0);
 }
 static x_input_set_state *XInputSetState_ = XInputSetStateStub;
 #define XInputSetState XInputSetState_
 
+typedef struct 
+{
+    render_frame *RenderFrame;
+} win32_engine_code;
+
+win32_engine_code Wind32LoadGame(void)
+{
+    win32_engine_code Result;
+    Result.RenderFrame = EngineRenderFrameStub;
+
+    HMODULE GameCodeDLL = LoadLibrary("engine.dll");
+    if (GameCodeDLL)
+    {
+        Result.RenderFrame = (render_frame *)GetProcAddress(GameCodeDLL, "EngineRenderFrame");
+    }
+}
+
 void Wind32LoadXInput(void)
 {
     HMODULE XIinputLibrary = LoadLibrary("xinput1_3.dll");
     if (XIinputLibrary)
     {
-        XInputGetState = (x_input_get_state*)GetProcAddress(XIinputLibrary, "XInputGetState");
-        XInputSetState = (x_input_set_state*)GetProcAddress(XIinputLibrary, "XInputGetState");
+        XInputGetState = (x_input_get_state *)GetProcAddress(XIinputLibrary, "XInputGetState");
+        XInputSetState = (x_input_set_state *)GetProcAddress(XIinputLibrary, "XInputGetState");
     }
 }
-
 
 void checkres(HRESULT hr)
 {
@@ -120,9 +129,9 @@ void checkres(HRESULT hr)
 
 LRESULT CALLBACK
 Win32MainWindowCallback(HWND Window,
-                   UINT Message,
-                   WPARAM WParam,
-                   LPARAM LParam)
+                        UINT Message,
+                        WPARAM WParam,
+                        LPARAM LParam)
 {
     LRESULT Result = 0;
     switch (Message)
@@ -143,45 +152,45 @@ Win32MainWindowCallback(HWND Window,
             bool isdown = ((LParam & (1 << 31)) == 0);
             switch (VKCode)
             {
-            case 'W':
+                case 'W':
 
-                break;
-            case 'A':
-                posx += mxperframe;
-                break;
-            case 'S':
+                    break;
+                case 'A':
+                    posx += mxperframe;
+                    break;
+                case 'S':
 
-                break;
-            case 'D':
-                posx -= mxperframe;
-                break;
-            case 'Q':
+                    break;
+                case 'D':
+                    posx -= mxperframe;
+                    break;
+                case 'Q':
 
-                break;
-            case 'E':
+                    break;
+                case 'E':
 
-                break;
-            case VK_UP:
+                    break;
+                case VK_UP:
 
-                break;
-            case VK_LEFT:
+                    break;
+                case VK_LEFT:
 
-                break;
-            case VK_DOWN:
+                    break;
+                case VK_DOWN:
 
-                break;
-            case VK_RIGHT:
+                    break;
+                case VK_RIGHT:
 
-                break;
-            case VK_ESCAPE:
-                PostQuitMessage(0);
-                return 0;
-            case VK_SPACE:
+                    break;
+                case VK_ESCAPE:
+                    PostQuitMessage(0);
+                    return 0;
+                case VK_SPACE:
 
-                break;
+                    break;
 
-            default:
-                break;
+                default:
+                    break;
             }
         }
         break;
@@ -401,10 +410,6 @@ void CleanD3D()
     d3dctx->lpVtbl->Release(d3dctx);
 }
 
-
-
-
-
 int CALLBACK
 WinMain(HINSTANCE Instance,
         HINSTANCE PrevInstance,
@@ -415,6 +420,7 @@ WinMain(HINSTANCE Instance,
     QueryPerformanceFrequency(&perfCountFreq);
     int64_t perfCountFrequency = perfCountFreq.QuadPart;
 
+    win32_engine_code engine = Wind32LoadGame();
     Wind32LoadXInput();
 
     HWND WindowHandle;
@@ -488,7 +494,7 @@ WinMain(HINSTANCE Instance,
                 //OutputDebugStringA("controller not connected");
             }
         }
-        RenderFrame();
+        engine.RenderFrame();
 
         QueryPerformanceCounter(&endCounter);
         float elapsed = (float)(endCounter.QuadPart - beginCounter.QuadPart);

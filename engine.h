@@ -1,5 +1,8 @@
 #pragma once
 
+#include <stdio.h>
+#include <string.h>
+#include <stdint.h>
 #include <stdbool.h>
 #include <stdint.h>
 
@@ -54,13 +57,15 @@ vector3 add(vector3 a, vector3 b)
     return r;
 }
 
-void RenderFrame();
+#define RENDER_FRAME(name) void name()
+typedef RENDER_FRAME(render_frame);
+RENDER_FRAME(EngineRenderFrameStub)
+{
+}
+// static render_frame *RenderFrame_ = RenderFrameStub;
+// #define RenderFrame RenderFrame_
 
-
-void GameUpdateAndRender(
-    GameMemory *memory,
-    GameInput *input,
-    GameOffscreenBuffer *buffer);
+//void RenderFrame();
 
 void Clear(float* color);
 

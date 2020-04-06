@@ -6,5 +6,6 @@ set LinkerDirs= -L"C:\Program Files (x86)\Windows Kits\10\Lib" -L"C:\Program Fil
 set IncludeDirs= -I"C:\Program Files (x86)\Windows Kits\10\Include" -I"C:\Program Files (x86)\Microsoft DirectX SDK (June 2010)\Include"
 
 
+clang %IncludeDirs% %LinkerDirs% %LinkerFlags% %CompilerFlags% -shared -o Test.dll engine.c 
 clang %IncludeDirs% %LinkerDirs% %LinkerFlags% %CompilerFlags% test.c 
 a.exe

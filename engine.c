@@ -20,21 +20,21 @@ void perspective()
     rot.y = 0; //pitch
     rot.z = 0; //roll
 
-    SetWorldViewProojectionMatrix(up, position, lookAt, rot);
+    //SetWorldViewProojectionMatrix(up, position, lookAt, rot);
 }
 
-void RenderFrame()
+RENDER_FRAME(RenderFrame)
 {
     float color[4] = {255, 255, 0, 255};
-    Clear(color);
+    // Clear(color);
 
     perspective();
 
     unsigned int stride = sizeof(VERTEX);
     unsigned int offset = 0;
 
-    SetVertexBuffer(&stride, &offset);
-    Draw();
+    // SetVertexBuffer(&stride, &offset);
+    // Draw();
 }
 
 void GameUpdateAndRender(
