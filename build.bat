@@ -1,11 +1,14 @@
 @echo off
-del a.exe
+del test.exe
+
 set CompilerFlags= -Wno-missing-declarations -Wno-invalid-token-paste -Wno-unused-value -Wno-incompatible-pointer-types -Wno-int-conversion -Wno-implicit-function-declaration -Wno-nonportable-include-path -Wno-macro-redefined -std=c99 -x c
-set LinkerFlags= -lUser32 -lGdi32 -ldxguid -lDXGI -lD3D11 -lD3DX11 -lD3DCompiler -lD3DX10
-set LinkerDirs= -L"C:\Program Files (x86)\Windows Kits\10\Lib" -L"C:\Program Files (x86)\Microsoft DirectX SDK (June 2010)\Lib\x64"
-set IncludeDirs= -I"C:\Program Files (x86)\Windows Kits\10\Include" -I"C:\Program Files (x86)\Microsoft DirectX SDK (June 2010)\Include"
+
+set LinkerDirs= /LIBPATH:"C:\Program Files (x86)\Windows Kits\10\Lib\10.0.18362.0\um\x64" /LIBPATH:"C:\Program Files (x86)\Microsoft DirectX SDK (June 2010)\Lib\x64"
+set LinkerFlags= /link %LinkerDirs% User32.lib Gdi32.lib dxguid.lib DXGI.lib D3D11.lib D3DX11.lib d3dcompiler.lib D3DX10.lib
+set IncludeDirs=  /I"C:\Program Files (x86)\Microsoft DirectX SDK (June 2010)\Include" /I"C:\Program Files (x86)\Windows Kits\10\Include\10.0.18362.0\um"
 
 
-clang %IncludeDirs% %LinkerDirs% %LinkerFlags% %CompilerFlags% -shared -o Test.dll engine.c 
-clang %IncludeDirs% %LinkerDirs% %LinkerFlags% %CompilerFlags% test.c 
-a.exe
+
+REM clang %IncludeDirs% %LinkerDirs% %LinkerFlags% %CompilerFlags% test.c 
+cl %IncludeDirs% test.c %LinkerFlags%
+test.exe
