@@ -25,21 +25,13 @@ void perspective()
 
 RENDER_FRAME(RenderFrame)
 {
-    float color[4] = {255, 255, 0, 255};
+    float color[4] = {255, 0, 0, 255};
+    memory->SETClearColor(color);
     // Clear(color);
-
-    perspective();
+    //perspective();
 
     unsigned int stride = sizeof(VERTEX);
     unsigned int offset = 0;
-
     // SetVertexBuffer(&stride, &offset);
     // Draw();
-}
-
-void GameUpdateAndRender(
-    GameMemory *memory,
-    GameInput *input,
-    GameOffscreenBuffer *buffer)
-{
 }

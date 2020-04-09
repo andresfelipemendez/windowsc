@@ -35,6 +35,19 @@ float posx = 0;
 const int SCREEN_WIDTH = 800;
 const int SCREEN_HEIGHT = 600;
 
+DEBUG_PLATFORM_PRINT_CONSOLE(DEBUGPlatformPrintConsole)
+{
+    OutputDebugStringA(message);
+}
+
+SET_CLEAR_COLOR(SETClearColor)
+{
+    d3dctx->lpVtbl->ClearRenderTargetView(d3dctx, view, color);
+
+    d3dctx->lpVtbl->Draw(d3dctx, 3, 0);
+    HRESULT res = sc->lpVtbl->Present(sc, 0, 0);
+}
+
 #define X_INPUT_GET_STATE(name) DWORD name(DWORD dwUserIndex, XINPUT_STATE *pState)
 typedef X_INPUT_GET_STATE(x_input_get_state);
 X_INPUT_GET_STATE(XInputGetStateStub)
@@ -58,20 +71,30 @@ typedef struct
     render_frame *RenderFrame;
 } win32_engine_code;
 
+win32_engine_code engineMethods;
+
 win32_engine_code Wind32LoadGame(void)
 {
-    win32_engine_code Result;
-    Result.RenderFrame = EngineRenderFrameStub;
+    OutputDebugStringA("try Load engine lib");
 
     HMODULE GameCodeDLL = LoadLibrary("engine.dll");
     if (GameCodeDLL)
     {
-        Result.RenderFrame = (render_frame *)GetProcAddress(GameCodeDLL, "EngineRenderFrame");
+        engineMethods.RenderFrame = (render_frame *)GetProcAddress(GameCodeDLL, "RenderFrame");
+    } else {
+        OutputDebugStringA("Load failed engine lib");
+    }
+
+    if (engineMethods.RenderFrame != NULL)
+    {
+    } else {
+        OutputDebugStringA("failure  Loaded render function");
     }
 }
 
 void Wind32LoadXInput(void)
 {
+    
     HMODULE XIinputLibrary = LoadLibrary("xinput1_3.dll");
     if (XIinputLibrary)
     {
@@ -375,10 +398,11 @@ void SetWorldViewProojectionMatrix(vector3 up, vector3 position, vector3 lookAt,
     SetShaderParameters(worldMatrix, viewMatrix, projectionMatrix);
 }
 
-void Clear(float *color)
-{
-    d3dctx->lpVtbl->ClearRenderTargetView(d3dctx, view, color);
-}
+
+// SET_CLEAR_COLOR(SETColor)
+// {
+//     d3dctx->lpVtbl->ClearRenderTargetView(d3dctx, view, color);
+// }
 
 void SetVertexBuffer(unsigned int *stride, unsigned int *offset)
 {
@@ -416,11 +440,15 @@ WinMain(HINSTANCE Instance,
         LPSTR CommandLine,
         int ShowCode)
 {
+    GameMemory gameMemory;
+    gameMemory.DEBUGPlatformPrintConsole = DEBUGPlatformPrintConsole;
+    gameMemory.SETClearColor = SETClearColor;
+
     LARGE_INTEGER perfCountFreq;
     QueryPerformanceFrequency(&perfCountFreq);
     int64_t perfCountFrequency = perfCountFreq.QuadPart;
 
-    win32_engine_code engine = Wind32LoadGame();
+    Wind32LoadGame();
     Wind32LoadXInput();
 
     HWND WindowHandle;
@@ -494,14 +522,15 @@ WinMain(HINSTANCE Instance,
                 //OutputDebugStringA("controller not connected");
             }
         }
-        engine.RenderFrame();
-
+        
+        engineMethods.RenderFrame(&gameMemory);
+        
         QueryPerformanceCounter(&endCounter);
         float elapsed = (float)(endCounter.QuadPart - beginCounter.QuadPart);
         mxperframe = ((1000.0f * elapsed) / (float)perfCountFrequency);
         mxperframe = mxperframe < 33.33f ? mxperframe : 33.33f; 
         char buffer[256];
-        sprintf(buffer, "Millisecond/frame: %f ms\n", mxperframe);
+      //  sprintf(buffer, "Millisecond/frame: %f ms\n", mxperframe);
         OutputDebugStringA(buffer);
 
         beginCounter = endCounter;

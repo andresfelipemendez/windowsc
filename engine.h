@@ -1,30 +1,12 @@
 #pragma once
 
 #include <stdio.h>
-#include <string.h>
 #include <stdint.h>
 #include <stdbool.h>
 #include <stdint.h>
 
+#define DllExport __declspec(dllexport)
 #define PI (3.14159265358979323846)
-
-typedef struct {
-    bool IsInitialized;
-
-    uint32_t PermamentStoreageSize;
-    void *PermamentStoreage;
-
-    uint32_t TransientStoreageSize;
-    void *TransientStoreage;
-
-}GameMemory;
-
-typedef struct {
-} GameInput;
-
-typedef struct
-{
-} GameOffscreenBuffer;
 
 typedef struct
 {
@@ -57,17 +39,19 @@ vector3 add(vector3 a, vector3 b)
     return r;
 }
 
-#define RENDER_FRAME(name) void name()
+#define SET_CLEAR_COLOR(name) void name(float *color)
+typedef SET_CLEAR_COLOR(set_clear_color);
+
+#define DEBUG_PLATFORM_PRINT_CONSOLE(name) void name(char *message)
+typedef DEBUG_PLATFORM_PRINT_CONSOLE(debug_platform_print_console);
+
+typedef struct {
+    debug_platform_print_console *DEBUGPlatformPrintConsole;
+    set_clear_color *SETClearColor;
+} GameMemory ;
+
+#define RENDER_FRAME(name) DllExport void name(GameMemory* memory)
 typedef RENDER_FRAME(render_frame);
-RENDER_FRAME(EngineRenderFrameStub)
-{
-}
-// static render_frame *RenderFrame_ = RenderFrameStub;
-// #define RenderFrame RenderFrame_
-
-//void RenderFrame();
-
-void Clear(float* color);
 
 void SetWorldViewProojectionMatrix(vector3 up, vector3 position, vector3 lookAt, vector3 rot);
 
