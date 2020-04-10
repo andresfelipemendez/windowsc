@@ -25,9 +25,8 @@ void perspective()
 
 RENDER_FRAME(RenderFrame)
 {
-    float color[4] = {255, 0, 0, 255};
+    float color[4] = {0.6f, 0.6f,0, 255};
     memory->SETClearColor(color);
-    // Clear(color);
     //perspective();
 
     unsigned int stride = sizeof(VERTEX);

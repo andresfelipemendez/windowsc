@@ -68,19 +68,22 @@ static x_input_set_state *XInputSetState_ = XInputSetStateStub;
 
 typedef struct 
 {
+    HMODULE gameCodeDLL;
     render_frame *RenderFrame;
 } win32_engine_code;
 
-win32_engine_code engineMethods;
 
-win32_engine_code Wind32LoadGame(void)
+
+static win32_engine_code Wind32LoadGame(void)
 {
-    OutputDebugStringA("try Load engine lib");
+    win32_engine_code engineMethods = {0};
 
-    HMODULE GameCodeDLL = LoadLibrary("engine.dll");
-    if (GameCodeDLL)
+    CopyFile("engine.dll", "engine_temp.dll", false);
+
+    engineMethods.gameCodeDLL = LoadLibrary("engine_temp.dll");
+    if (engineMethods.gameCodeDLL)
     {
-        engineMethods.RenderFrame = (render_frame *)GetProcAddress(GameCodeDLL, "RenderFrame");
+        engineMethods.RenderFrame = (render_frame *)GetProcAddress(engineMethods.gameCodeDLL, "RenderFrame");
     } else {
         OutputDebugStringA("Load failed engine lib");
     }
@@ -90,6 +93,14 @@ win32_engine_code Wind32LoadGame(void)
     } else {
         OutputDebugStringA("failure  Loaded render function");
     }
+
+    return (engineMethods);
+}
+
+void UnloadGameCode(win32_engine_code *enginemethods)
+{
+
+    FreeLibrary(enginemethods->gameCodeDLL);
 }
 
 void Wind32LoadXInput(void)
@@ -398,12 +409,6 @@ void SetWorldViewProojectionMatrix(vector3 up, vector3 position, vector3 lookAt,
     SetShaderParameters(worldMatrix, viewMatrix, projectionMatrix);
 }
 
-
-// SET_CLEAR_COLOR(SETColor)
-// {
-//     d3dctx->lpVtbl->ClearRenderTargetView(d3dctx, view, color);
-// }
-
 void SetVertexBuffer(unsigned int *stride, unsigned int *offset)
 {
     d3dctx->lpVtbl->IASetVertexBuffers(d3dctx, 0, 1, &pVBuffer, stride, offset);
@@ -448,7 +453,7 @@ WinMain(HINSTANCE Instance,
     QueryPerformanceFrequency(&perfCountFreq);
     int64_t perfCountFrequency = perfCountFreq.QuadPart;
 
-    Wind32LoadGame();
+    win32_engine_code enginemethods = Wind32LoadGame();
     Wind32LoadXInput();
 
     HWND WindowHandle;
@@ -494,16 +499,24 @@ WinMain(HINSTANCE Instance,
     OutputDebugStringA("start");
     QueryPerformanceCounter(&beginCounter);
     MSG Message = {0};
+    uint32_t LoadCounter = 0;
     while(TRUE)
     {
-        if (PeekMessage(&Message, 0, 0, 0, PM_REMOVE) > 0)
-        {
-            TranslateMessage(&Message);
-            DispatchMessage(&Message);
-            if(Message.message == WM_QUIT) {
-                break;
-            }
+        if (LoadCounter++ >120) {
+            UnloadGameCode(&enginemethods);
+            https: //youtu.be/WMSBRk5WG58?t=2909
+            enginemethods = Wind32LoadGame();
+            LoadCounter = 0;
         }
+            if (PeekMessage(&Message, 0, 0, 0, PM_REMOVE) > 0)
+            {
+                TranslateMessage(&Message);
+                DispatchMessage(&Message);
+                if (Message.message == WM_QUIT)
+                {
+                    break;
+                }
+            }
 
         for (DWORD ControllerIndex = 0; ControllerIndex < 4; ControllerIndex++)
         {
@@ -522,9 +535,9 @@ WinMain(HINSTANCE Instance,
                 //OutputDebugStringA("controller not connected");
             }
         }
-        
-        engineMethods.RenderFrame(&gameMemory);
-        
+
+        enginemethods.RenderFrame(&gameMemory);
+
         QueryPerformanceCounter(&endCounter);
         float elapsed = (float)(endCounter.QuadPart - beginCounter.QuadPart);
         mxperframe = ((1000.0f * elapsed) / (float)perfCountFrequency);
