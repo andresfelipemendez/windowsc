@@ -6,12 +6,23 @@
         {
             "label": "build",
             "type": "shell",
-            "command": "echo Hello",
+            "command": ".\\build.bat",
             "windows": {
                 "command": ".\\build.bat"
             },
             "problemMatcher": [
-                "$gcc"
+                "$msCompile"
+            ]
+        },
+        {
+            "label": "update",
+            "type": "shell",
+            "command": ".\\update.bat",
+            "windows": {
+                "command": ".\\update.bat"
+            },
+            "problemMatcher": [
+                "$msCompile"
             ]
         }
     ]
