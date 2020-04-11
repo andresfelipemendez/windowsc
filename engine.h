@@ -42,18 +42,31 @@ vector3 add(vector3 a, vector3 b)
 #define SET_CLEAR_COLOR(name) void name(float *color)
 typedef SET_CLEAR_COLOR(set_clear_color);
 
+#define SET_WORLD_VIEW_PROJECTION_MATRIX(name) void name(vector3 up, vector3 position, vector3 lookAt, vector3 rot)
+typedef SET_WORLD_VIEW_PROJECTION_MATRIX(set_world_view_projection_matrix);
+
+#define SET_VERTEX_BUFFER(name) void name(unsigned int *stride, unsigned int *offset)
+typedef SET_VERTEX_BUFFER(set_vertex_buffer);
+
+#define DRAW(name) void name(void)
+typedef DRAW(draw);
+
 #define DEBUG_PLATFORM_PRINT_CONSOLE(name) void name(char *message)
 typedef DEBUG_PLATFORM_PRINT_CONSOLE(debug_platform_print_console);
 
 typedef struct {
     debug_platform_print_console *DEBUGPlatformPrintConsole;
     set_clear_color *SETClearColor;
+    set_world_view_projection_matrix *SETWorldViewProjectionMatrix;
+    set_vertex_buffer *SETVertexBuffer;
+    draw *Draw;
 } GameMemory ;
+
 
 #define RENDER_FRAME(name) DllExport void name(GameMemory* memory)
 typedef RENDER_FRAME(render_frame);
 
-void SetWorldViewProojectionMatrix(vector3 up, vector3 position, vector3 lookAt, vector3 rot);
+//void SetWorldViewProojectionMatrix;
 
 void SetVertexBuffer(unsigned int *stride, unsigned int *offset);
 

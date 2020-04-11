@@ -12,6 +12,13 @@ typedef struct
     D3DXMATRIX projection;
 } MatrixBufferType;
 
+typedef struct
+{
+    HMODULE gameCodeDLL;
+    FILETIME DLLLastWriteTime;
+    render_frame *RenderFrame;
+} win32_engine_code;
+
 ID3D11Device *d3ddev;
 ID3D11DeviceContext *d3dctx;
 IDXGISwapChain *sc;
@@ -28,8 +35,8 @@ ID3D11Buffer *m_matrixBuffer;
 
 LARGE_INTEGER endCounter;
 LARGE_INTEGER beginCounter;
-float mxperframe = 0;
 
+float mxperframe = 0;
 float posx = 0;
 
 const int SCREEN_WIDTH = 800;
@@ -66,12 +73,7 @@ X_INPUT_SET_STATE(XInputSetStateStub)
 static x_input_set_state *XInputSetState_ = XInputSetStateStub;
 #define XInputSetState XInputSetState_
 
-typedef struct 
-{
-    HMODULE gameCodeDLL;
-    FILETIME DLLLastWriteTime;
-    render_frame *RenderFrame;
-} win32_engine_code;
+
 
 inline FILETIME Win32GetLastWriteTime(char *Filename)
 {
@@ -392,7 +394,7 @@ void SetShaderParameters(
     d3dctx->lpVtbl->VSSetConstantBuffers(d3dctx, bufferNumber, 1, &m_matrixBuffer);
 }
 
-void SetWorldViewProojectionMatrix(vector3 up, vector3 position, vector3 lookAt, vector3 rot)
+SET_WORLD_VIEW_PROJECTION_MATRIX(SETWorldViewProjectionMatrix)
 {
 
     D3DMATRIX viewMatrix, projectionMatrix, worldMatrix;
@@ -425,13 +427,14 @@ void SetWorldViewProojectionMatrix(vector3 up, vector3 position, vector3 lookAt,
     SetShaderParameters(worldMatrix, viewMatrix, projectionMatrix);
 }
 
-void SetVertexBuffer(unsigned int *stride, unsigned int *offset)
+SET_VERTEX_BUFFER(SETVertexBuffer)
 {
     d3dctx->lpVtbl->IASetVertexBuffers(d3dctx, 0, 1, &pVBuffer, stride, offset);
     d3dctx->lpVtbl->IASetPrimitiveTopology(d3dctx, D3D10_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 }
 
-void Draw() {
+DRAW(Draw) 
+{
     d3dctx->lpVtbl->Draw(d3dctx, 3, 0);
 
     HRESULT res = sc->lpVtbl->Present(sc, 0, 0);
@@ -464,8 +467,11 @@ WinMain(HINSTANCE Instance,
     GameMemory gameMemory;
     gameMemory.DEBUGPlatformPrintConsole = DEBUGPlatformPrintConsole;
     gameMemory.SETClearColor = SETClearColor;
+    gameMemory.SETWorldViewProjectionMatrix = SETWorldViewProjectionMatrix;
+    gameMemory.SETVertexBuffer = SETVertexBuffer;
+    gameMemory.Draw = Draw;
 
-    LARGE_INTEGER perfCountFreq;
+        LARGE_INTEGER perfCountFreq;
     QueryPerformanceFrequency(&perfCountFreq);
     int64_t perfCountFrequency = perfCountFreq.QuadPart;
 

@@ -1,6 +1,6 @@
 #include "engine.h"
 
-void perspective()
+void perspective(GameMemory* memory)
 {   vector3 up, position, lookAt;
     vector3 rot;
 
@@ -20,17 +20,17 @@ void perspective()
     rot.y = 0; //pitch
     rot.z = 0; //roll
 
-    //SetWorldViewProojectionMatrix(up, position, lookAt, rot);
+    memory->SETWorldViewProjectionMatrix(up, position, lookAt, rot);
 }
 
 RENDER_FRAME(RenderFrame)
 {
     float color[4] = {0.1f, 0.1f, 0.5f, 255};
     memory->SETClearColor(color);
-    //perspective();
+    perspective(memory);
 
     unsigned int stride = sizeof(VERTEX);
     unsigned int offset = 0;
-    // SetVertexBuffer(&stride, &offset);
-    // Draw();
+    memory->SETVertexBuffer(&stride, &offset);
+    memory->Draw();
 }
