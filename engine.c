@@ -10,7 +10,7 @@ void perspective(GameMemory* memory)
 
     position.x = 0;
     position.y = 0;
-    position.z = -30.15;
+    position.z = -10.15;
 
     lookAt.x = 0.0f;
     lookAt.y = 0.0f;
@@ -25,7 +25,7 @@ void perspective(GameMemory* memory)
 
 RENDER_FRAME(RenderFrame)
 {
-    float color[4] = {0.1f, 0.1f, 0.5f, 255};
+    float color[4] = {0.2f, 0.3f, 0.5f, 255};
     memory->SETClearColor(color);
     perspective(memory);
 

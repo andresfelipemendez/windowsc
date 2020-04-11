@@ -530,6 +530,8 @@ WinMain(HINSTANCE Instance,
             enginemethods = Wind32LoadGame();
             UnloadGameCode(&enginemethods);
             enginemethods = Wind32LoadGame();
+            UnloadGameCode(&enginemethods);
+            enginemethods = Wind32LoadGame();
         }
 
         if (PeekMessage(&Message, 0, 0, 0, PM_REMOVE) > 0)
