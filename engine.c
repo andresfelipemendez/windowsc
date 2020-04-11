@@ -25,7 +25,7 @@ void perspective()
 
 RENDER_FRAME(RenderFrame)
 {
-    float color[4] = {0.6f, 0.6f,0, 255};
+    float color[4] = {0.1f, 0.1f, 0.5f, 255};
     memory->SETClearColor(color);
     //perspective();
 

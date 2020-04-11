@@ -69,18 +69,34 @@ static x_input_set_state *XInputSetState_ = XInputSetStateStub;
 typedef struct 
 {
     HMODULE gameCodeDLL;
+    FILETIME DLLLastWriteTime;
     render_frame *RenderFrame;
 } win32_engine_code;
 
-
+inline FILETIME Win32GetLastWriteTime(char *Filename)
+{
+    FILETIME lastWriteTime = {0};
+    WIN32_FIND_DATA FindData;
+    HANDLE FindHandle = FindFirstFile(Filename, &FindData);
+    if(FindHandle != INVALID_HANDLE_VALUE)
+    {
+        lastWriteTime = FindData.ftLastWriteTime;
+        FindClose(FindHandle);
+    }
+    return (lastWriteTime);
+}
 
 static win32_engine_code Wind32LoadGame(void)
 {
     win32_engine_code engineMethods = {0};
 
-    CopyFile("engine.dll", "engine_temp.dll", false);
+    char *SourceDLLName = "engine.dll";
+    char *TempDLLName = "engine_temp.dll";
 
-    engineMethods.gameCodeDLL = LoadLibrary("engine_temp.dll");
+    engineMethods.DLLLastWriteTime = Win32GetLastWriteTime(SourceDLLName);
+    CopyFile(SourceDLLName, TempDLLName, false);
+
+    engineMethods.gameCodeDLL = LoadLibrary(TempDLLName);
     if (engineMethods.gameCodeDLL)
     {
         engineMethods.RenderFrame = (render_frame *)GetProcAddress(engineMethods.gameCodeDLL, "RenderFrame");
@@ -99,8 +115,8 @@ static win32_engine_code Wind32LoadGame(void)
 
 void UnloadGameCode(win32_engine_code *enginemethods)
 {
-
     FreeLibrary(enginemethods->gameCodeDLL);
+    enginemethods->RenderFrame = NULL;
 }
 
 void Wind32LoadXInput(void)
@@ -502,21 +518,23 @@ WinMain(HINSTANCE Instance,
     uint32_t LoadCounter = 0;
     while(TRUE)
     {
-        if (LoadCounter++ >120) {
+        FILETIME NewFileTime = Win32GetLastWriteTime("engine.dll");
+        if(CompareFileTime(&enginemethods.DLLLastWriteTime, &NewFileTime) != 0) {
             UnloadGameCode(&enginemethods);
-            https: //youtu.be/WMSBRk5WG58?t=2909
             enginemethods = Wind32LoadGame();
-            LoadCounter = 0;
+            UnloadGameCode(&enginemethods);
+            enginemethods = Wind32LoadGame();
         }
-            if (PeekMessage(&Message, 0, 0, 0, PM_REMOVE) > 0)
+
+        if (PeekMessage(&Message, 0, 0, 0, PM_REMOVE) > 0)
+        {
+            TranslateMessage(&Message);
+            DispatchMessage(&Message);
+            if (Message.message == WM_QUIT)
             {
-                TranslateMessage(&Message);
-                DispatchMessage(&Message);
-                if (Message.message == WM_QUIT)
-                {
-                    break;
-                }
+                break;
             }
+        }
 
         for (DWORD ControllerIndex = 0; ControllerIndex < 4; ControllerIndex++)
         {
