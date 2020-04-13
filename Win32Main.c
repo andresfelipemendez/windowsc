@@ -524,14 +524,11 @@ WinMain(HINSTANCE Instance,
     uint32_t LoadCounter = 0;
     while(TRUE)
     {
-        FILETIME NewFileTime = Win32GetLastWriteTime("engine.dll");
-        if(CompareFileTime(&enginemethods.DLLLastWriteTime, &NewFileTime) != 0) {
+        if (LoadCounter++ > 120)
+        {
             UnloadGameCode(&enginemethods);
             enginemethods = Wind32LoadGame();
-            UnloadGameCode(&enginemethods);
-            enginemethods = Wind32LoadGame();
-            UnloadGameCode(&enginemethods);
-            enginemethods = Wind32LoadGame();
+            LoadCounter = 0;
         }
 
         if (PeekMessage(&Message, 0, 0, 0, PM_REMOVE) > 0)
