@@ -19,6 +19,11 @@ typedef struct
     render_frame *RenderFrame;
 } win32_engine_code;
 
+typedef struct {
+    float Pos[3];
+    float Col[3];
+} SimpleVertexCombined;
+
 ID3D11Device *d3ddev;
 ID3D11DeviceContext *d3dctx;
 IDXGISwapChain *sc;
@@ -29,7 +34,11 @@ ID3D11RenderTargetView *view;
 ID3D11InputLayout *m_layout;
 ID3D11VertexShader *pVS;
 ID3D11PixelShader *pPS;
+
 ID3D11Buffer *pVBuffer;
+
+ID3D11Buffer *g_pIndexBuffer = NULL;
+ID3D11Buffer *g_pVertexBuffer = NULL;
 
 ID3D11Buffer *m_matrixBuffer;
 
@@ -50,9 +59,6 @@ DEBUG_PLATFORM_PRINT_CONSOLE(DEBUGPlatformPrintConsole)
 SET_CLEAR_COLOR(SETClearColor)
 {
     d3dctx->lpVtbl->ClearRenderTargetView(d3dctx, view, color);
-
-    d3dctx->lpVtbl->Draw(d3dctx, 3, 0);
-    HRESULT res = sc->lpVtbl->Present(sc, 0, 0);
 }
 
 #define X_INPUT_GET_STATE(name) DWORD name(DWORD dwUserIndex, XINPUT_STATE *pState)
@@ -267,7 +273,7 @@ void InitPipeline()
     D3D11_INPUT_ELEMENT_DESC ied[] =
         {
             {"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0},
-            {"COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0}
+            {"COLOR", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0}
         };
 
     d3ddev->lpVtbl->CreateInputLayout(d3ddev, ied, 2, VS->lpVtbl->GetBufferPointer(VS), VS->lpVtbl->GetBufferSize(VS), &m_layout);
@@ -276,25 +282,60 @@ void InitPipeline()
 
 void InitGraphics()
 {
-    VERTEX OurVertices[3] = {
-        {0.0f, 0.5f, 0.0f, {1.0f, 0.0f, 0.0f, 1.0f}},
-        {0.45f, -0.5f, 0.0f, {0.0f, 1.0f, 0.0f, 1.0f}},
-        {-0.45f, -0.5f, 0.0f, {0.0f, 0.0f, 1.0f, 1.0f}}};
+    unsigned int indices[] = {0, 1, 2};
 
-    D3D11_BUFFER_DESC bd;
-    ZeroMemory(&bd, sizeof(bd));
+    D3D11_BUFFER_DESC bufferDesc;
+    ZeroMemory(&bufferDesc, sizeof(bufferDesc));
+    bufferDesc.Usage = D3D11_USAGE_DEFAULT;
+    bufferDesc.ByteWidth = sizeof(unsigned int) * 3;
+    bufferDesc.BindFlags = D3D11_BIND_INDEX_BUFFER;
+    bufferDesc.CPUAccessFlags = 0;
+    bufferDesc.MiscFlags = 0;
 
-    bd.Usage = D3D11_USAGE_DYNAMIC;
-    bd.ByteWidth = sizeof(VERTEX) * 3;
-    bd.BindFlags = D3D11_BIND_VERTEX_BUFFER;
-    bd.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+    D3D11_SUBRESOURCE_DATA InitData;
+    ZeroMemory(&InitData, sizeof(InitData));
+    InitData.pSysMem = indices;
+    InitData.SysMemPitch = 0;
+    InitData.SysMemSlicePitch = 0;
 
-    d3ddev->lpVtbl->CreateBuffer(d3ddev, &bd, NULL, &pVBuffer);
+    HRESULT hr = d3ddev->lpVtbl->CreateBuffer(d3ddev, &bufferDesc, &InitData, &g_pIndexBuffer);
+    if (FAILED(hr))
+    {
+        checkres(hr);
+    }
+
+    SimpleVertexCombined verticesCombo[3] =
+    {
+        {{0.0f, 0.5f, 0.0f}, {0.0f, 0.0f, 0.5f}},
+        {{0.5f, -0.5f, 0.0f}, {0.5f, 0.0f, 0.5f}},
+        {{-0.5f, -0.5f, 0.0f}, {0.0f, 0.5f, 0.5f}}
+    };
+
+    //D3D11_BUFFER_DESC bufferDesc;
+    ZeroMemory(&bufferDesc, sizeof(bufferDesc));
+    bufferDesc.Usage = D3D11_USAGE_DYNAMIC;
+    bufferDesc.ByteWidth = sizeof(SimpleVertexCombined) * 3;
+    bufferDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+    bufferDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+    
+
+    //D3D11_SUBRESOURCE_DATA InitData;
+    ZeroMemory(&InitData, sizeof(InitData));
+    InitData.pSysMem = verticesCombo;
+    InitData.SysMemPitch = 0;
+    InitData.SysMemSlicePitch = 0;
+
+    hr = d3ddev->lpVtbl->CreateBuffer(d3ddev, &bufferDesc, NULL, &g_pVertexBuffer);
+
+    if (FAILED(hr))
+    {
+        checkres(hr);
+    }
 
     D3D11_MAPPED_SUBRESOURCE ms;
-    d3dctx->lpVtbl->Map(d3dctx, pVBuffer, NULL, D3D11_MAP_WRITE_DISCARD, NULL, &ms);
-    memcpy(ms.pData, OurVertices, sizeof(OurVertices));
-    d3dctx->lpVtbl->Unmap(d3dctx, pVBuffer, NULL);
+    d3dctx->lpVtbl->Map(d3dctx, g_pVertexBuffer, NULL, D3D11_MAP_WRITE_DISCARD, NULL, &ms);
+    memcpy(ms.pData, verticesCombo, sizeof(verticesCombo));
+    d3dctx->lpVtbl->Unmap(d3dctx, g_pVertexBuffer, NULL);
 }
 
 void InitD3D(HWND hWnd)
@@ -429,7 +470,10 @@ SET_WORLD_VIEW_PROJECTION_MATRIX(SETWorldViewProjectionMatrix)
 
 SET_VERTEX_BUFFER(SETVertexBuffer)
 {
-    d3dctx->lpVtbl->IASetVertexBuffers(d3dctx, 0, 1, &pVBuffer, stride, offset);
+    unsigned int off = 0;
+    unsigned int str = sizeof(SimpleVertexCombined);
+    d3dctx->lpVtbl->IASetIndexBuffer(d3dctx, g_pIndexBuffer, DXGI_FORMAT_R32_UINT, 0);
+    d3dctx->lpVtbl->IASetVertexBuffers(d3dctx, 0, 1, &g_pVertexBuffer, &str, &off);
     d3dctx->lpVtbl->IASetPrimitiveTopology(d3dctx, D3D10_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 }
 
@@ -499,7 +543,7 @@ WinMain(HINSTANCE Instance,
         "Window Class",
         "Windows Programming",
         WS_OVERLAPPEDWINDOW,
-        3432,
+        0,
         0,
         SCREEN_WIDTH,
         SCREEN_HEIGHT,

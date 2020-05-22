@@ -25,7 +25,7 @@ void perspective(GameMemory* memory)
 
 RENDER_FRAME(RenderFrame)
 {
-    float color[4] = {0.2f, 0.1f, 0.1f, 255};
+    float color[4] = {0.22f, 0.5f, 0.1f, 255};
     memory->SETClearColor(color);
     perspective(memory);
 
